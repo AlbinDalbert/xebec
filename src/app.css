@@ -1,0 +1,109 @@
+/* Tokens: the Ember palette and type from mosaic's design/mocks.html. */
+:root {
+  --bg: #0c0b09;
+  --panel: #15130f;
+  --text: #e6dfd4;
+  --text-strong: #fbf7ef;
+  --text-dim: #8f8678;
+  --border: #302b23;
+  --accent: #dfa13d;
+  --accent-strong: #f2c96f;
+  --accent-soft: rgba(223, 161, 61, 0.12);
+  --danger: #b33a2e;
+
+  --prose: var(--text);
+  --font-ui: 'JetBrains Mono', 'Liberation Mono', ui-monospace, monospace;
+  --font-prose: 'Iowan Old Style', Charter, 'Bitstream Charter', 'Liberation Serif', Georgia, serif;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--text-strong);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+/* Bracket buttons */
+.btn {
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  padding: 3px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn::before {
+  content: '[ ';
+  color: var(--text-dim);
+}
+.btn::after {
+  content: ' ]';
+  color: var(--text-dim);
+}
+.btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+.btn.primary {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+input,
+textarea {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+}
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+textarea::placeholder,
+input::placeholder {
+  color: var(--text-dim);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+}
+* {
+  scrollbar-color: var(--border) transparent;
+  scrollbar-width: thin;
+}
