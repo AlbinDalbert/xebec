@@ -17,8 +17,8 @@ npm install
 npm run dev      # http://localhost:5173
 ```
 
-The dev server proxies `/api` to meridian (override with `MERIDIAN_URL=...`), so no CORS setup
-is needed. Log in with an API key minted in meridian's admin console. The key is kept in
+The dev server proxies `/api` to meridian, so no CORS setup is needed. `example.env` lists the
+variables; copy it to `.env.local` to change them (or set them in the shell). Log in with an API key minted in meridian's admin console. The key is kept in
 `localStorage`.
 
 `npm run check` type-checks; `npm run build` writes `dist/`.

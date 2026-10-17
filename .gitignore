@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local environment files (see example.env). Never commit these.
+.env
+.env.*
