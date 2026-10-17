@@ -1,0 +1,50 @@
+# Rendered into conf.d/ by the nginx image at startup. Only set environment variables
+# (MERIDIAN_URL) are substituted; nginx's own $variables pass through untouched.
+
+server {
+    listen 8080;
+    server_name _;
+    root /usr/share/nginx/html;
+
+    # Model output is rendered as HTML (sanitized), so keep the page to its own origin.
+    add_header Content-Security-Policy "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'" always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy no-referrer always;
+
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    location /api/ {
+        proxy_pass ${MERIDIAN_URL};
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # Run events are SSE: pass each chunk through as it arrives. Meridian sends a keepalive
+        # every 15s, so the read timeout only matters if it goes quiet.
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 1h;
+        client_max_body_size 10m;
+    }
+
+    # Hashed file names: cache forever.
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        # add_header in a location drops the server-level ones, so repeat them.
+        add_header Content-Security-Policy "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'" always;
+        add_header X-Content-Type-Options nosniff always;
+        add_header Referrer-Policy no-referrer always;
+    }
+
+    location / {
+        try_files $uri /index.html;
+        add_header Cache-Control "no-cache";
+        add_header Content-Security-Policy "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'" always;
+        add_header X-Content-Type-Options nosniff always;
+        add_header Referrer-Policy no-referrer always;
+    }
+}

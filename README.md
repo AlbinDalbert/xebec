@@ -25,9 +25,26 @@ variables; copy it to `.env.local` to change them (or set them in the shell). Lo
 
 ## Deploying
 
-`dist/` is static. Either serve it from the same origin as meridian (a reverse proxy routing
-`/api` to meridian), or build with `VITE_MERIDIAN_URL=https://meridian.example` and add xebec's
-origin to meridian's `CORS_ALLOWED_ORIGINS`.
+The image is `ghcr.io/albindalbert/xebec`, multi-arch (amd64 + arm64), built by
+`.github/workflows/image.yml`. Tags: `main`, `sha-<commit>`, and `X.Y.Z` / `X.Y` for `vX.Y.Z` git
+tags.
+
+It is unprivileged nginx (uid 101) on port **8080**, serving the app and proxying `/api` to
+meridian, so the browser sees one origin and meridian needs no CORS setup. One setting:
+
+| Variable       | Default            | |
+|----------------|--------------------|-|
+| `MERIDIAN_URL` | `http://meridian`  | Meridian's address from inside the cluster, e.g. `http://meridian.meridian.svc`. No trailing slash or path. It must resolve when the container starts. |
+
+`/healthz` answers 200 for probes. Run event streams (SSE) are passed through unbuffered.
+
+```sh
+docker run -p 8080:8080 -e MERIDIAN_URL=http://host.docker.internal:4000 ghcr.io/albindalbert/xebec:main
+```
+
+Without the image: `dist/` is static. Serve it behind a reverse proxy that routes `/api` to
+meridian (see `nginx.conf.template`), or build with `VITE_MERIDIAN_URL=https://meridian.example`
+and add xebec's origin to meridian's `CORS_ALLOWED_ORIGINS`.
 
 ## Layout
 
