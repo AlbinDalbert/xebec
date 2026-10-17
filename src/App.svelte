@@ -1,7 +1,17 @@
 <script lang="ts">
-  import { getKey, getSession, listThreads, logOut, type Thread } from './lib/api'
+  import {
+    clearFresh,
+    getKey,
+    getSession,
+    listPersonas,
+    listThreads,
+    logOut,
+    type Persona,
+    type Session,
+    type Thread,
+  } from './lib/api'
   import { activity, setOpen, track, type Activity } from './lib/activity.svelte'
-  import Chat, { type Status } from './lib/Chat.svelte'
+  import Chat from './lib/Chat.svelte'
   import Dots from './lib/Dots.svelte'
   import Login from './lib/Login.svelte'
   import Mark from './lib/Mark.svelte'
@@ -10,10 +20,10 @@
   let loggedIn = $state(!!getKey())
   let checking = $state(!getKey())
   let signIn = $state(false)
+  let user = $state<Session['user']>(null)
   let threads = $state<Thread[]>([])
+  let personas = $state<Persona[]>([])
   let threadId = $state<string | null>(location.hash.slice(1) || null)
-  let status = $state<Status>({ kind: 'ready' })
-  let persona = $state<string | null>(null)
   // Narrow screens only: the tree becomes an overlay.
   let treeOpen = $state(false)
 
@@ -29,6 +39,8 @@
 
   const current = $derived(threads.find((t) => t.id === threadId))
   const title = $derived(threadId ? current?.title || 'Untitled' : 'New thread')
+  // Who's signed in, for the corner. API keys don't say whose they are, so show which key.
+  const who = $derived(user ? user.name || user.email || 'Signed in' : `API key ··${getKey()?.slice(-4) ?? ''}`)
 
   // Threads grouped by last activity, like folders in mosaic's tree.
   const groups = $derived.by(() => {
@@ -69,14 +81,23 @@
     for (const t of threads) if (t.active_run) track(t.active_run)
   }
   $effect(() => {
-    if (loggedIn) refresh()
+    if (!loggedIn) return
+    refresh()
+    // An older meridian has no persona list; the picker just stays hidden.
+    listPersonas()
+      .then((list) => (personas = list))
+      .catch(() => (personas = []))
   })
 
   async function checkSession() {
     try {
       const session = await getSession()
       signIn = session.sign_in
-      loggedIn ||= !!session.user
+      user = session.user
+      if (user) {
+        loggedIn = true
+        clearFresh()
+      }
     } catch {
       signIn = false
     } finally {
@@ -85,39 +106,50 @@
   }
   if (!getKey()) checkSession()
 
+  function login() {
+    clearFresh()
+    loggedIn = true
+  }
+
   async function logout() {
     loggedIn = false
+    user = null
     threads = []
+    personas = []
     open(null)
     await logOut()
     await checkSession()
   }
 </script>
 
-<div class="app">
-  <header class="titlebar">
-    <Mark />
-    <span class="name">XEBEC</span>
-    {#if loggedIn}
-      <button class="quiet toggle" onclick={() => (treeOpen = !treeOpen)}>
+<div class="app" class:out={!loggedIn}>
+  {#if loggedIn}
+    <header class="titlebar">
+      <button class="brand" onclick={() => open(null)} title="New thread">
+        <Mark />
+        <span class="name">XEBEC</span>
+      </button>
+      <button class="quiet toggle" onclick={() => (treeOpen = !treeOpen)} aria-expanded={treeOpen}>
         {treeOpen ? '▾' : '▸'} Threads
       </button>
-      <span class="doc">— {title}</span>
-      <button class="quiet" onclick={logout}>Log out</button>
-    {/if}
-  </header>
+      <div class="account">
+        <span class="who" title={user?.email ?? undefined}>
+          <span class="dot">●</span>
+          <span class="who-name">{who}</span>
+        </span>
+        <button class="quiet logout" onclick={logout}>Log out</button>
+      </div>
+    </header>
 
-  {#if loggedIn}
     <div class="body">
       <nav class="tree" class:open={treeOpen}>
-        <div class="project">Threads</div>
+        <button class="new" class:current={!threadId} onclick={() => open(null)}>
+          <span class="plus">+</span> New thread
+        </button>
         <ul>
-          <li class="new" class:current={!threadId}>
-            <button onclick={() => open(null)}>+ New thread</button>
-          </li>
           {#each groups as group (group.label)}
             <li class="folder">
-              <div class="label"><span class="fold">▾</span>{group.label}</div>
+              <div class="label">{group.label}</div>
               <ul>
                 {#each group.threads as t (t.id)}
                   {@const act = activity[t.id]}
@@ -131,70 +163,85 @@
                 {/each}
               </ul>
             </li>
+          {:else}
+            <li class="empty">No threads yet.</li>
           {/each}
         </ul>
       </nav>
       <main>
-        <Chat {threadId} {title} onOpen={open} onActivity={refresh} bind:status bind:persona />
+        <Chat {threadId} {title} {personas} onOpen={open} onActivity={refresh} />
       </main>
     </div>
   {:else if !checking}
-    <Login {signIn} onLogin={() => (loggedIn = true)} />
+    <Login {signIn} onLogin={login} />
   {/if}
-
-  <footer class="status" class:failed={status.kind === 'failed'}>
-    <span class="path">{loggedIn ? `Threads / ${title}` : 'Not connected'}</span>
-    <span class="right">
-      {#if persona}<span class="persona">{persona}</span>{/if}
-      {#if loggedIn}
-        <span class="state">
-          {#if status.kind === 'ready'}■ Ready
-          {:else if status.kind === 'queued'}◇ Queued…
-          {:else if status.kind === 'running'}□ Generating <Dots />
-          {:else if status.kind === 'reconnecting'}◇ Reconnecting…
-          {:else if status.kind === 'cancelled'}‖ Stopped
-          {:else}▲ {status.message}
-          {/if}
-        </span>
-      {/if}
-      {#if status.kind === 'failed'}
-        <button class="btn" onclick={() => (status = { kind: 'ready' })}>Dismiss</button>
-      {/if}
-    </span>
-  </footer>
 </div>
 
 <style>
   .app {
     display: grid;
-    grid-template-rows: 36px minmax(0, 1fr) 26px;
+    grid-template-rows: 40px minmax(0, 1fr);
     height: 100%;
+  }
+  .app.out {
+    grid-template-rows: minmax(0, 1fr);
   }
 
   .titlebar {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 0 0 0 12px;
+    padding: 0 0 0 14px;
     background: var(--panel);
     border-bottom: 1px solid var(--border);
     font-size: 12px;
     user-select: none;
     min-width: 0;
   }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0;
+    font: inherit;
+    background: none;
+    border: 0;
+    cursor: pointer;
+  }
   .name {
     color: var(--accent);
     font-weight: 700;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.22em;
   }
-  .doc {
-    color: var(--text-dim);
-    overflow: hidden;
-    text-overflow: ellipsis;
+  .brand:hover .name {
+    color: var(--accent-strong);
+  }
+
+  .account {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    align-self: stretch;
+    min-width: 0;
+  }
+  .who {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+    padding: 0 14px;
+    color: var(--text);
     white-space: nowrap;
   }
+  .who-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .dot {
+    color: var(--accent);
+    font-size: 8px;
+  }
   .quiet {
-    margin-left: auto;
     align-self: stretch;
     padding: 0 16px;
     font: inherit;
@@ -207,36 +254,60 @@
   .quiet:hover {
     color: var(--accent-strong);
   }
+  .logout {
+    flex: none;
+    border-left: 1px solid var(--border);
+  }
   .toggle {
     display: none;
-    margin-left: 0;
-    padding: 0 4px;
+    padding: 0 6px;
   }
 
   .body {
     position: relative;
     display: grid;
-    grid-template-columns: 224px minmax(0, 1fr);
+    grid-template-columns: 232px minmax(0, 1fr);
     min-height: 0;
   }
   main {
     min-height: 0;
   }
 
-  /* Thread tree, after mosaic's file tree */
+  /* Thread list */
   .tree {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
     background: var(--panel);
     border-right: 1px solid var(--border);
     padding: 14px 0;
     font-size: 12.5px;
     overflow-y: auto;
   }
-  .project {
-    padding: 0 14px 10px;
-    font-size: 11px;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
+  .new {
+    margin: 0 12px;
+    padding: 5px 10px;
+    font: inherit;
+    text-align: left;
+    color: var(--text);
+    background: none;
+    border: 1px dashed var(--border);
+    cursor: pointer;
+  }
+  .new:hover {
+    border-color: var(--accent);
+    border-style: solid;
+    color: var(--accent-strong);
+  }
+  .new.current {
+    border: 1px solid var(--accent);
+    color: var(--accent-strong);
+    background: var(--accent-soft);
+  }
+  .plus {
     color: var(--accent);
+    font-weight: 700;
+    margin-right: 4px;
   }
   ul {
     list-style: none;
@@ -248,7 +319,6 @@
     border-left: 1px solid var(--border);
   }
   li a,
-  .new button,
   .label {
     display: block;
     padding: 2px 14px;
@@ -282,90 +352,28 @@
     color: var(--text);
     text-decoration: none;
   }
-  li a:hover,
-  .new button:hover {
+  li a:hover {
     color: var(--accent-strong);
   }
-  .new {
-    margin-bottom: 8px;
-  }
-  .new button {
-    width: 100%;
-    font: inherit;
-    text-align: left;
-    background: none;
-    border: 0;
-    color: var(--text-dim);
-    cursor: pointer;
-  }
   .folder {
-    margin-bottom: 4px;
+    margin-bottom: 6px;
   }
   .label {
-    color: var(--text-dim);
     padding-left: 14px;
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-dim);
   }
-  .fold {
-    display: inline-block;
-    width: 12px;
+  .empty {
+    padding: 0 14px;
+    color: var(--text-dim);
   }
   li.current > a,
-  li.current > a:hover,
-  li.current > button,
-  li.current > button:hover {
+  li.current > a:hover {
     background: var(--accent);
     color: var(--bg);
     font-weight: 700;
-  }
-
-  /* Status line */
-  .status {
-    display: flex;
-    align-items: center;
-    gap: 22px;
-    padding: 0 12px;
-    background: var(--panel);
-    border-top: 1px solid var(--border);
-    font-size: 11.5px;
-    color: var(--text-dim);
-    white-space: nowrap;
-    min-width: 0;
-  }
-  .path {
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .right {
-    margin-left: auto;
-    display: flex;
-    gap: 22px;
-    align-items: center;
-    min-width: 0;
-  }
-  .state {
-    color: var(--text);
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .status.failed {
-    background: var(--accent);
-    color: var(--bg);
-    border-top-color: var(--accent);
-  }
-  .status.failed .state {
-    color: var(--bg);
-    font-weight: 700;
-  }
-  .status.failed .btn {
-    color: var(--bg);
-    border-color: var(--bg);
-    padding: 0 8px;
-    font-size: 11px;
-    font-weight: 700;
-  }
-  .status.failed .btn::before,
-  .status.failed .btn::after {
-    color: var(--bg);
   }
 
   @media (max-width: 760px) {
@@ -377,16 +385,17 @@
       position: absolute;
       inset: 0 auto 0 0;
       width: min(280px, 85vw);
-      z-index: 1;
+      z-index: 3;
     }
     .tree.open {
-      display: block;
+      display: flex;
     }
     .toggle {
       display: block;
     }
-    .doc,
-    .persona {
+  }
+  @media (max-width: 480px) {
+    .who {
       display: none;
     }
   }

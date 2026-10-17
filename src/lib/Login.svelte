@@ -1,5 +1,6 @@
 <script lang="ts">
   import { checkKey, setKey, signInUrl, takeNotice } from './api'
+  import Mark from './Mark.svelte'
 
   let { signIn, onLogin }: { signIn: boolean; onLogin: () => void } = $props()
 
@@ -43,6 +44,11 @@
 </script>
 
 <div class="scrim">
+  <div class="masthead">
+    <Mark size={64} />
+    <div class="word">XEBEC</div>
+    <div class="sub">a chat client for meridian</div>
+  </div>
   <form class="dialog" onsubmit={submit}>
     <div class="bar">Connect to Meridian</div>
     <div class="content">
@@ -74,8 +80,34 @@
 <style>
   .scrim {
     height: 100%;
-    display: grid;
-    place-items: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+    padding: 24px 0;
+  }
+  .masthead {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    user-select: none;
+  }
+  .word {
+    margin-top: 4px;
+    color: var(--accent);
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.5em;
+    /* letter-spacing trails the last letter; pull it back so the word centres. */
+    margin-right: -0.5em;
+  }
+  .sub {
+    color: var(--text-dim);
+    font-family: var(--font-prose);
+    font-style: italic;
+    font-size: 15px;
   }
   .dialog {
     width: min(460px, 92vw);

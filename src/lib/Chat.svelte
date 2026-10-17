@@ -1,13 +1,3 @@
-<script lang="ts" module>
-  export type Status =
-    | { kind: 'ready' }
-    | { kind: 'queued' }
-    | { kind: 'running' }
-    | { kind: 'reconnecting' }
-    | { kind: 'cancelled' }
-    | { kind: 'failed'; message: string }
-</script>
-
 <script lang="ts">
   import { tick } from 'svelte'
   import {
@@ -18,31 +8,44 @@
     listMessages,
     runEvents,
     sendMessage,
+    setThreadPersona,
     textOf,
     type Message,
+    type Persona,
     type Run,
     type Thread,
   } from './api'
   import * as activity from './activity.svelte'
+  import Dots from './Dots.svelte'
   import MessageView from './MessageView.svelte'
+  import PersonaPicker from './PersonaPicker.svelte'
+
+  type Status =
+    | { kind: 'ready' }
+    | { kind: 'queued' }
+    | { kind: 'running' }
+    | { kind: 'reconnecting' }
+    | { kind: 'cancelled' }
+    | { kind: 'failed'; message: string }
 
   let {
     threadId,
     title,
+    personas,
     onOpen,
     onActivity,
-    status = $bindable(),
-    persona = $bindable(),
   }: {
     threadId: string | null
     title: string
+    /** The personas the user may pick from; empty hides the picker. */
+    personas: Persona[]
     /** Navigate to a thread (null: a new one). */
     onOpen: (id: string | null) => void
     /** Threads changed (new message, finished run, deletion); refresh the list. */
     onActivity: () => void
-    status: Status
-    persona: string | null
   } = $props()
+
+  const PERSONA_STORAGE = 'xebec.persona'
 
   let thread = $state<Thread | null>(null)
   let messages = $state<Message[]>([])
@@ -52,6 +55,15 @@
   let draft = $state('')
   let sending = $state(false)
   let confirmDelete = $state(false)
+  let status = $state<Status>({ kind: 'ready' })
+  // The open thread's persona, or the one picked for a new thread. New threads otherwise get the
+  // last one picked, then meridian's default.
+  let picked = $state<string | null>(null)
+  const persona = $derived.by(() => {
+    if (picked) return picked
+    const remembered = localStorage.getItem(PERSONA_STORAGE)
+    return (personas.find((p) => p.id === remembered) ?? personas.find((p) => p.default))?.id ?? null
+  })
 
   let source: EventSource | null = null
   let loadSeq = 0
@@ -73,7 +85,7 @@
     pending = null
     confirmDelete = false
     status = { kind: 'ready' }
-    persona = null
+    picked = null
     input?.focus()
     if (!id) return
     try {
@@ -82,7 +94,7 @@
       thread = t
       messages = page.data
       hasMore = page.has_more
-      persona = t.persona
+      picked = t.persona
       if (t.active_run) follow(t.active_run)
       scrollToEnd(true)
     } catch (err) {
@@ -100,7 +112,6 @@
   function follow(r: Run) {
     close()
     run = r
-    persona = r.persona
     pending = { content: '', reasoning: '' }
     status = { kind: r.status === 'queued' ? 'queued' : 'running' }
     activity.track(r)
@@ -175,7 +186,7 @@
         onActivity()
       } else {
         // First message: make the thread, send, then let load() pick up the active run.
-        const t = await createThread(content.split('\n')[0].slice(0, 80))
+        const t = await createThread(content.split('\n')[0].slice(0, 80), persona ?? undefined)
         const { run: r } = await sendMessage(t.id, content)
         activity.track(r)
         draft = ''
@@ -186,6 +197,23 @@
       fail(err)
     } finally {
       sending = false
+    }
+  }
+
+  async function pickPersona(id: string) {
+    localStorage.setItem(PERSONA_STORAGE, id)
+    if (!threadId) {
+      picked = id
+      return
+    }
+    // Takes effect from the next message.
+    const before = picked
+    picked = id
+    try {
+      thread = await setThreadPersona(threadId, id)
+    } catch (err) {
+      picked = before
+      fail(err)
     }
   }
 
@@ -259,8 +287,7 @@
           {#if !threadId}
             <span>Write below to start a thread.</span>
           {:else if thread}
-            <span>{thread.persona}</span>
-            <span>{started}</span>
+            <span>Started {started}</span>
             {#if confirmDelete}
               <span class="confirm">
                 Delete this thread?
@@ -287,6 +314,12 @@
   </div>
 
   <form class="composer" onsubmit={send}>
+    {#if status.kind === 'failed'}
+      <div class="error" role="alert">
+        <span>▲ {status.message}</span>
+        <button type="button" onclick={() => (status = { kind: 'ready' })}>Dismiss</button>
+      </div>
+    {/if}
     <div class="box">
       <textarea
         rows="1"
@@ -296,8 +329,15 @@
         onkeydown={keydown}
       ></textarea>
       <div class="bar">
+        {#if personas.length}
+          <PersonaPicker {personas} value={persona} disabled={!!run} onPick={pickPersona} />
+        {/if}
         <span class="hint">
-          {#if run}Esc to stop{:else}Enter to send · Shift+Enter for a new line{/if}
+          {#if status.kind === 'queued'}◇ Queued<span class="keys"> · Esc to cancel</span>
+          {:else if status.kind === 'reconnecting'}◇ Reconnecting…
+          {:else if run}<span class="live">Generating <Dots /></span><span class="keys"> · Esc to stop</span>
+          {:else if status.kind === 'cancelled'}‖ Stopped<span class="keys"> · Enter to send</span>
+          {:else}<span class="keys">Enter to send · Shift+Enter for a new line</span>{/if}
         </span>
         {#if run}
           <button type="button" class="btn" onclick={stop}>Stop</button>
@@ -423,7 +463,6 @@
   .bar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 12px;
     padding: 6px 8px 8px 14px;
     font-family: var(--font-ui);
@@ -437,8 +476,40 @@
     white-space: nowrap;
   }
   .bar .btn {
+    flex: none;
+    margin-left: auto;
     padding: 1px 8px;
     font-size: 11.5px;
+  }
+  .live {
+    color: var(--accent-strong);
+  }
+
+  .error {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    max-width: 66ch;
+    margin: 0 auto 8px;
+    padding: 4px 10px;
+    background: var(--accent);
+    color: var(--bg);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .error span {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .error button {
+    font: inherit;
+    font-weight: 700;
+    color: inherit;
+    background: none;
+    border: 1px solid var(--bg);
+    padding: 0 8px;
+    cursor: pointer;
   }
 
   @media (max-width: 640px) {
@@ -448,8 +519,8 @@
     .composer {
       padding: 0 12px 12px;
     }
-    .hint {
-      visibility: hidden;
+    .keys {
+      display: none;
     }
   }
 </style>

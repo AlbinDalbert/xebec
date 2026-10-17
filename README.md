@@ -5,8 +5,8 @@ A slim web chat client for [meridian](../meridian). Meridian owns the whole chat
 send a message, follow the run's event stream.
 
 Svelte 5 + TypeScript + Vite, built to static files. The only runtime dependencies are `marked`
-and `DOMPurify` for rendering model output. The look comes from mosaic's design mocks (Ember
-palette, mono chrome, serif prose).
+and `DOMPurify` for rendering model output. The look started from mosaic's design mocks (Ember
+palette, mono chrome, serif prose); the mark is a xebec's two lateen sails.
 
 ## Development
 
@@ -54,6 +54,10 @@ meridian's README, "Signing in"), the login screen shows **Sign in**, which goes
 callback at `/api/auth/callback`, and comes back to xebec with a session cookie. Xebec has no
 provider settings of its own.
 
+**Log out** ends meridian's session, but the provider keeps its own. So the next **Sign in**
+after a log out sends `prompt=login`, and meridian asks the provider to sign in again
+(`prompt=login`, `max_age=0`) instead of going straight through, which lets you switch accounts.
+
 This needs xebec and meridian on one origin, which the dev proxy and the image's nginx provide.
 Register `http://localhost:5173/api/auth/callback` (dev) and `https://<xebec host>/api/auth/callback`
 as redirect URIs at the provider. Both proxies pass on `X-Forwarded-Host` and `X-Forwarded-Proto`
@@ -64,5 +68,6 @@ so meridian builds the callback URL for xebec's address, not its own. With a cro
 
 - `src/lib/api.ts`: the meridian API client and types.
 - `src/App.svelte`: shell, thread list, login gate. The open thread is the URL hash.
-- `src/lib/Chat.svelte`: messages, composer, run streaming, status line.
+- `src/lib/Chat.svelte`: messages, composer, persona picker, run streaming and status.
+- `src/lib/PersonaPicker.svelte`: the persona dropdown on the composer (`GET /api/personas`).
 - `src/lib/MessageView.svelte`: one message; markdown for assistant replies.

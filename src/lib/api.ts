@@ -32,6 +32,15 @@ export interface Run {
   events_token: string
 }
 
+export interface Persona {
+  /** What threads take as `persona` (`meridian/<slug>`). */
+  id: string
+  name: string
+  model: string
+  /** The one a thread gets without a persona. */
+  default: boolean
+}
+
 export interface Thread {
   id: string
   title: string | null
@@ -102,11 +111,20 @@ export interface Session {
 /** Meridian's sign-in: whether it's available and who is signed in. */
 export const getSession = () => request<{ data: Session }>('GET', '/api/auth/session', undefined, null).then((r) => r.data)
 
+// Set by logging out. Meridian's session ends, but the provider keeps its own, so without this
+// the next sign-in would go straight through as the same account.
+const FRESH_STORAGE = 'xebec.fresh'
+export const clearFresh = () => localStorage.removeItem(FRESH_STORAGE)
+
 /** Where the Sign in button goes. Meridian runs the login and comes back to `returnTo`. */
-export const signInUrl = (returnTo: string) => `${BASE}/api/auth/login?return_to=${encodeURIComponent(returnTo)}`
+export function signInUrl(returnTo: string) {
+  const fresh = localStorage.getItem(FRESH_STORAGE) ? '&prompt=login' : ''
+  return `${BASE}/api/auth/login?return_to=${encodeURIComponent(returnTo)}${fresh}`
+}
 
 export async function logOut() {
   clearKey()
+  localStorage.setItem(FRESH_STORAGE, '1')
   await request<void>('POST', '/api/auth/logout', undefined, null).catch(() => {})
 }
 
@@ -119,8 +137,14 @@ export const listThreads = () =>
 export const getThread = (id: string) =>
   request<{ data: Thread }>('GET', `/api/threads/${id}`).then((r) => r.data)
 
-export const createThread = (title: string) =>
-  request<{ data: Thread }>('POST', '/api/threads', { title }).then((r) => r.data)
+export const createThread = (title: string, persona?: string) =>
+  request<{ data: Thread }>('POST', '/api/threads', { title, persona }).then((r) => r.data)
+
+/** Changes the thread's persona; the next run uses it. */
+export const setThreadPersona = (id: string, persona: string) =>
+  request<{ data: Thread }>('PATCH', `/api/threads/${id}`, { persona }).then((r) => r.data)
+
+export const listPersonas = () => request<{ data: Persona[] }>('GET', '/api/personas').then((r) => r.data)
 
 export const deleteThread = (id: string) => request<void>('DELETE', `/api/threads/${id}`)
 
@@ -134,7 +158,7 @@ export const sendMessage = (threadId: string, content: string) =>
 
 export const getRun = (id: string) => request<{ data: Run }>('GET', `/api/runs/${id}`).then((r) => r.data)
 
-export const cancelRun =(id: string) => request<{ data: Run }>('POST', `/api/runs/${id}/cancel`)
+export const cancelRun = (id: string) => request<{ data: Run }>('POST', `/api/runs/${id}/cancel`)
 
 /** Opens a run's event stream. EventSource resumes on its own after drops (Last-Event-ID). */
 export const runEvents = (run: Run) =>
