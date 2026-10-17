@@ -56,11 +56,10 @@
     {disabled}
     aria-haspopup="listbox"
     aria-expanded={open}
-    title={current ? `${current.name} · ${current.model}` : 'Persona'}
+    title={current?.model}
     onclick={() => (open = !open)}
   >
     <span class="name">{current?.name ?? 'Persona'}</span>
-    {#if current}<span class="model">{current.model}</span>{/if}
     <span class="caret">{open ? '▴' : '▾'}</span>
   </button>
 
@@ -68,10 +67,15 @@
     <div class="menu" role="listbox" aria-label="Persona" bind:this={list}>
       <div class="head">Persona</div>
       {#each personas as p (p.id)}
-        <button type="button" role="option" aria-selected={p.id === value} onclick={() => pick(p.id)}>
+        <button
+          type="button"
+          role="option"
+          aria-selected={p.id === value}
+          title={p.model}
+          onclick={() => pick(p.id)}
+        >
           <span class="tick">{p.id === value ? '■' : ''}</span>
           <span class="name">{p.name}</span>
-          <span class="model">{p.model}</span>
         </button>
       {/each}
     </div>
@@ -81,7 +85,8 @@
 <style>
   .picker {
     position: relative;
-    min-width: 0;
+    flex: none;
+    max-width: 50%;
   }
   .trigger {
     display: flex;
@@ -110,11 +115,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .model {
-    color: var(--text-dim);
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
   .caret {
     color: var(--text-dim);
   }
@@ -125,8 +125,8 @@
     bottom: calc(100% + 6px);
     left: 0;
     z-index: 2;
-    min-width: 240px;
-    max-width: min(420px, 80vw);
+    min-width: 180px;
+    max-width: min(320px, 80vw);
     max-height: 50vh;
     overflow-y: auto;
     padding-bottom: 4px;
@@ -146,7 +146,7 @@
   }
   .menu button {
     display: grid;
-    grid-template-columns: 14px minmax(0, auto) minmax(0, 1fr);
+    grid-template-columns: 14px minmax(0, 1fr);
     align-items: baseline;
     gap: 10px;
     width: 100%;
@@ -163,9 +163,6 @@
   .menu button .name {
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-  .menu .model {
-    text-align: right;
   }
   .tick {
     color: var(--accent);

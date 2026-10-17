@@ -336,8 +336,8 @@
           {#if status.kind === 'queued'}◇ Queued<span class="keys"> · Esc to cancel</span>
           {:else if status.kind === 'reconnecting'}◇ Reconnecting…
           {:else if run}<span class="live">Generating <Dots /></span><span class="keys"> · Esc to stop</span>
-          {:else if status.kind === 'cancelled'}‖ Stopped<span class="keys"> · Enter to send</span>
-          {:else}<span class="keys">Enter to send · Shift+Enter for a new line</span>{/if}
+          {:else if status.kind === 'cancelled'}‖ Stopped
+          {:else}<span class="keys subtle">Shift+Enter for a new line</span>{/if}
         </span>
         {#if run}
           <button type="button" class="btn" onclick={stop}>Stop</button>
@@ -480,6 +480,10 @@
     margin-left: auto;
     padding: 1px 8px;
     font-size: 11.5px;
+  }
+  .subtle {
+    font-size: 10px;
+    opacity: 0.6;
   }
   .live {
     color: var(--accent-strong);
