@@ -58,6 +58,11 @@ provider settings of its own.
 after a log out sends `prompt=login`, and meridian asks the provider to sign in again
 (`prompt=login`, `max_age=0`) instead of going straight through, which lets you switch accounts.
 
+**Account** (top right) links to meridian's `/me`, where people manage their own personas and
+settings. Meridian reports its address in `GET /api/auth/session` (`account_url`, from its
+public URL), so xebec needs no setting for it. The login screen's **Request** goes to
+`/me/request`, for people without a user yet. With an older meridian both are hidden.
+
 This needs xebec and meridian on one origin, which the dev proxy and the image's nginx provide.
 Register `http://localhost:5173/api/auth/callback` (dev) and `https://<xebec host>/api/auth/callback`
 as redirect URIs at the provider. Both proxies pass on `X-Forwarded-Host` and `X-Forwarded-Proto`

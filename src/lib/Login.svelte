@@ -2,7 +2,16 @@
   import { checkKey, setKey, signInUrl, takeNotice } from './api'
   import Mark from './Mark.svelte'
 
-  let { signIn, onLogin }: { signIn: boolean; onLogin: () => void } = $props()
+  let {
+    signIn,
+    accountUrl,
+    onLogin,
+  }: {
+    signIn: boolean
+    /** Meridian's /me; people without a user ask for one at /me/request. */
+    accountUrl: string | null
+    onLogin: () => void
+  } = $props()
 
   // Meridian reports a failed sign-in by sending the browser back with ?sign_in_error=<code>.
   const signInErrors: Record<string, string> = {
@@ -57,6 +66,9 @@
         <div class="actions">
           <!-- Meridian runs the login and sends the browser back here, to the same thread. -->
           <a class="btn primary" href={signInUrl(location.pathname + location.hash)}>Sign in</a>
+          {#if accountUrl}
+            <a class="btn" href="{accountUrl}/request" title="No account yet? Ask for one">Request</a>
+          {/if}
           <button type="button" class="link" onclick={() => (showKey = true)}>Use an API key</button>
         </div>
       {:else}

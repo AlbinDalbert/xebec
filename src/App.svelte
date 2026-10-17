@@ -21,6 +21,7 @@
   let checking = $state(!getKey())
   let signIn = $state(false)
   let user = $state<Session['user']>(null)
+  let accountUrl = $state<string | null>(null)
   let threads = $state<Thread[]>([])
   let personas = $state<Persona[]>([])
   let threadId = $state<string | null>(location.hash.slice(1) || null)
@@ -93,7 +94,9 @@
     try {
       const session = await getSession()
       signIn = session.sign_in
-      user = session.user
+      // Requests go with the key when there is one, so a leftover session isn't who we are.
+      user = getKey() ? null : session.user
+      accountUrl = session.account_url ?? null
       if (user) {
         loggedIn = true
         clearFresh()
@@ -104,7 +107,8 @@
       checking = false
     }
   }
-  if (!getKey()) checkSession()
+  // With an API key, only for the account link.
+  checkSession()
 
   function login() {
     clearFresh()
@@ -137,6 +141,9 @@
           <span class="dot">●</span>
           <span class="who-name">{who}</span>
         </span>
+        {#if accountUrl}
+          <a class="quiet account-link" href={accountUrl} title="Manage your personas and settings">Account</a>
+        {/if}
         <button class="quiet logout" onclick={logout}>Log out</button>
       </div>
     </header>
@@ -173,7 +180,7 @@
       </main>
     </div>
   {:else if !checking}
-    <Login {signIn} onLogin={login} />
+    <Login {signIn} {accountUrl} onLogin={login} />
   {/if}
 </div>
 
@@ -254,9 +261,15 @@
   .quiet:hover {
     color: var(--accent-strong);
   }
-  .logout {
+  .logout,
+  .account-link {
     flex: none;
     border-left: 1px solid var(--border);
+  }
+  .account-link {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
   }
   .toggle {
     display: none;

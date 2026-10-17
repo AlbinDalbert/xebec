@@ -106,6 +106,8 @@ export interface Session {
   /** Whether meridian offers sign-in (with its OIDC provider). */
   sign_in: boolean
   user: { id: string; name: string; email: string | null } | null
+  /** Meridian's page for managing your own things (personas and so on). Older meridians omit it. */
+  account_url?: string
 }
 
 /** Meridian's sign-in: whether it's available and who is signed in. */
