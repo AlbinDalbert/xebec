@@ -3,10 +3,10 @@
     clearFresh,
     getKey,
     getSession,
-    listPersonas,
+    listAgents,
     listThreads,
     logOut,
-    type Persona,
+    type Agent,
     type Session,
     type Thread,
   } from './lib/api'
@@ -23,7 +23,7 @@
   let user = $state<Session['user']>(null)
   let accountUrl = $state<string | null>(null)
   let threads = $state<Thread[]>([])
-  let personas = $state<Persona[]>([])
+  let agents = $state<Agent[]>([])
   let threadId = $state<string | null>(location.hash.slice(1) || null)
   // Narrow screens only: the tree becomes an overlay.
   let treeOpen = $state(false)
@@ -84,10 +84,10 @@
   $effect(() => {
     if (!loggedIn) return
     refresh()
-    // An older meridian has no persona list; the picker just stays hidden.
-    listPersonas()
-      .then((list) => (personas = list))
-      .catch(() => (personas = []))
+    // An older meridian has no agent list; the picker just stays hidden.
+    listAgents()
+      .then((list) => (agents = list))
+      .catch(() => (agents = []))
   })
 
   async function checkSession() {
@@ -119,7 +119,7 @@
     loggedIn = false
     user = null
     threads = []
-    personas = []
+    agents = []
     open(null)
     await logOut()
     await checkSession()
@@ -142,7 +142,7 @@
           <span class="who-name">{who}</span>
         </span>
         {#if accountUrl}
-          <a class="quiet account-link" href={accountUrl} title="Manage your personas and settings">Account</a>
+          <a class="quiet account-link" href={accountUrl} title="Manage your agents and settings">Account</a>
         {/if}
         <button class="quiet logout" onclick={logout}>Log out</button>
       </div>
@@ -176,7 +176,7 @@
         </ul>
       </nav>
       <main>
-        <Chat {threadId} {title} {personas} onOpen={open} onActivity={refresh} />
+        <Chat {threadId} {title} {agents} onOpen={open} onActivity={refresh} />
       </main>
     </div>
   {:else if !checking}

@@ -26,25 +26,25 @@ export interface Run {
   id: string
   thread_id: string
   status: RunStatus
-  persona: string
+  agent: string
   model: string
   error: unknown
   events_token: string
 }
 
-export interface Persona {
-  /** What threads take as `persona` (`meridian/<slug>`). */
+export interface Agent {
+  /** What threads take as `agent` (`meridian/<slug>`). */
   id: string
   name: string
   model: string
-  /** The one a thread gets without a persona. */
+  /** The one a thread gets without an agent. */
   default: boolean
 }
 
 export interface Thread {
   id: string
   title: string | null
-  persona: string | null
+  agent: string | null
   inserted_at: string
   updated_at: string
   active_run?: Run | null
@@ -106,7 +106,7 @@ export interface Session {
   /** Whether meridian offers sign-in (with its OIDC provider). */
   sign_in: boolean
   user: { id: string; name: string; email: string | null } | null
-  /** Meridian's page for managing your own things (personas and so on). Older meridians omit it. */
+  /** Meridian's page for managing your own things (agents and so on). Older meridians omit it. */
   account_url?: string
 }
 
@@ -139,14 +139,14 @@ export const listThreads = () =>
 export const getThread = (id: string) =>
   request<{ data: Thread }>('GET', `/api/threads/${id}`).then((r) => r.data)
 
-export const createThread = (title: string, persona?: string) =>
-  request<{ data: Thread }>('POST', '/api/threads', { title, persona }).then((r) => r.data)
+export const createThread = (title: string, agent?: string) =>
+  request<{ data: Thread }>('POST', '/api/threads', { title, agent }).then((r) => r.data)
 
-/** Changes the thread's persona; the next run uses it. */
-export const setThreadPersona = (id: string, persona: string) =>
-  request<{ data: Thread }>('PATCH', `/api/threads/${id}`, { persona }).then((r) => r.data)
+/** Changes the thread's agent; the next run uses it. */
+export const setThreadAgent = (id: string, agent: string) =>
+  request<{ data: Thread }>('PATCH', `/api/threads/${id}`, { agent }).then((r) => r.data)
 
-export const listPersonas = () => request<{ data: Persona[] }>('GET', '/api/personas').then((r) => r.data)
+export const listAgents = () => request<{ data: Agent[] }>('GET', '/api/agents').then((r) => r.data)
 
 export const deleteThread = (id: string) => request<void>('DELETE', `/api/threads/${id}`)
 

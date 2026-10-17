@@ -1,14 +1,14 @@
 <script lang="ts">
-  import type { Persona } from './api'
+  import type { Agent } from './api'
 
   let {
-    personas,
+    agents,
     value,
     disabled = false,
     onPick,
   }: {
-    personas: Persona[]
-    /** The chosen persona's id. */
+    agents: Agent[]
+    /** The chosen agent's id. */
     value: string | null
     disabled?: boolean
     onPick: (id: string) => void
@@ -18,7 +18,7 @@
   let root: HTMLElement
   let list = $state<HTMLElement>()
 
-  const current = $derived(personas.find((p) => p.id === value))
+  const current = $derived(agents.find((a) => a.id === value))
 
   function pick(id: string) {
     open = false
@@ -59,23 +59,23 @@
     title={current?.model}
     onclick={() => (open = !open)}
   >
-    <span class="name">{current?.name ?? 'Persona'}</span>
+    <span class="name">{current?.name ?? 'Agent'}</span>
     <span class="caret">{open ? '▴' : '▾'}</span>
   </button>
 
   {#if open}
-    <div class="menu" role="listbox" aria-label="Persona" bind:this={list}>
-      <div class="head">Persona</div>
-      {#each personas as p (p.id)}
+    <div class="menu" role="listbox" aria-label="Agent" bind:this={list}>
+      <div class="head">Agent</div>
+      {#each agents as a (a.id)}
         <button
           type="button"
           role="option"
-          aria-selected={p.id === value}
-          title={p.model}
-          onclick={() => pick(p.id)}
+          aria-selected={a.id === value}
+          title={a.model}
+          onclick={() => pick(a.id)}
         >
-          <span class="tick">{p.id === value ? '■' : ''}</span>
-          <span class="name">{p.name}</span>
+          <span class="tick">{a.id === value ? '■' : ''}</span>
+          <span class="name">{a.name}</span>
         </button>
       {/each}
     </div>

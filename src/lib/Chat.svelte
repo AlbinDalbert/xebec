@@ -8,17 +8,17 @@
     listMessages,
     runEvents,
     sendMessage,
-    setThreadPersona,
+    setThreadAgent,
     textOf,
+    type Agent,
     type Message,
-    type Persona,
     type Run,
     type Thread,
   } from './api'
   import * as activity from './activity.svelte'
+  import AgentPicker from './AgentPicker.svelte'
   import Dots from './Dots.svelte'
   import MessageView from './MessageView.svelte'
-  import PersonaPicker from './PersonaPicker.svelte'
 
   type Status =
     | { kind: 'ready' }
@@ -31,21 +31,21 @@
   let {
     threadId,
     title,
-    personas,
+    agents,
     onOpen,
     onActivity,
   }: {
     threadId: string | null
     title: string
-    /** The personas the user may pick from; empty hides the picker. */
-    personas: Persona[]
+    /** The agents the user may pick from; empty hides the picker. */
+    agents: Agent[]
     /** Navigate to a thread (null: a new one). */
     onOpen: (id: string | null) => void
     /** Threads changed (new message, finished run, deletion); refresh the list. */
     onActivity: () => void
   } = $props()
 
-  const PERSONA_STORAGE = 'xebec.persona'
+  const AGENT_STORAGE = 'xebec.agent'
 
   let thread = $state<Thread | null>(null)
   let messages = $state<Message[]>([])
@@ -56,13 +56,13 @@
   let sending = $state(false)
   let confirmDelete = $state(false)
   let status = $state<Status>({ kind: 'ready' })
-  // The open thread's persona, or the one picked for a new thread. New threads otherwise get the
+  // The open thread's agent, or the one picked for a new thread. New threads otherwise get the
   // last one picked, then meridian's default.
   let picked = $state<string | null>(null)
-  const persona = $derived.by(() => {
+  const agent = $derived.by(() => {
     if (picked) return picked
-    const remembered = localStorage.getItem(PERSONA_STORAGE)
-    return (personas.find((p) => p.id === remembered) ?? personas.find((p) => p.default))?.id ?? null
+    const remembered = localStorage.getItem(AGENT_STORAGE)
+    return (agents.find((a) => a.id === remembered) ?? agents.find((a) => a.default))?.id ?? null
   })
 
   let source: EventSource | null = null
@@ -94,7 +94,7 @@
       thread = t
       messages = page.data
       hasMore = page.has_more
-      picked = t.persona
+      picked = t.agent
       if (t.active_run) follow(t.active_run)
       scrollToEnd(true)
     } catch (err) {
@@ -186,7 +186,7 @@
         onActivity()
       } else {
         // First message: make the thread, send, then let load() pick up the active run.
-        const t = await createThread(content.split('\n')[0].slice(0, 80), persona ?? undefined)
+        const t = await createThread(content.split('\n')[0].slice(0, 80), agent ?? undefined)
         const { run: r } = await sendMessage(t.id, content)
         activity.track(r)
         draft = ''
@@ -200,8 +200,8 @@
     }
   }
 
-  async function pickPersona(id: string) {
-    localStorage.setItem(PERSONA_STORAGE, id)
+  async function pickAgent(id: string) {
+    localStorage.setItem(AGENT_STORAGE, id)
     if (!threadId) {
       picked = id
       return
@@ -210,7 +210,7 @@
     const before = picked
     picked = id
     try {
-      thread = await setThreadPersona(threadId, id)
+      thread = await setThreadAgent(threadId, id)
     } catch (err) {
       picked = before
       fail(err)
@@ -329,8 +329,8 @@
         onkeydown={keydown}
       ></textarea>
       <div class="bar">
-        {#if personas.length}
-          <PersonaPicker {personas} value={persona} disabled={!!run} onPick={pickPersona} />
+        {#if agents.length}
+          <AgentPicker {agents} value={agent} disabled={!!run} onPick={pickAgent} />
         {/if}
         <span class="hint">
           {#if status.kind === 'queued'}◇ Queued<span class="keys"> · Esc to cancel</span>

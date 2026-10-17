@@ -58,7 +58,7 @@ provider settings of its own.
 after a log out sends `prompt=login`, and meridian asks the provider to sign in again
 (`prompt=login`, `max_age=0`) instead of going straight through, which lets you switch accounts.
 
-**Account** (top right) links to meridian's `/me`, where people manage their own personas and
+**Account** (top right) links to meridian's `/me`, where people manage their own agents and
 settings. Meridian reports its address in `GET /api/auth/session` (`account_url`, from its
 public URL), so xebec needs no setting for it. The login screen's **Request** goes to
 `/me/request`, for people without a user yet. With an older meridian both are hidden.
@@ -73,6 +73,6 @@ so meridian builds the callback URL for xebec's address, not its own. With a cro
 
 - `src/lib/api.ts`: the meridian API client and types.
 - `src/App.svelte`: shell, thread list, login gate. The open thread is the URL hash.
-- `src/lib/Chat.svelte`: messages, composer, persona picker, run streaming and status.
-- `src/lib/PersonaPicker.svelte`: the persona dropdown on the composer (`GET /api/personas`).
+- `src/lib/Chat.svelte`: messages, composer, agent picker, run streaming and status.
+- `src/lib/AgentPicker.svelte`: the agent dropdown on the composer (`GET /api/agents`).
 - `src/lib/MessageView.svelte`: one message; markdown for assistant replies.
