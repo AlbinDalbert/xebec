@@ -55,27 +55,59 @@ export const getKey = () => localStorage.getItem(KEY_STORAGE)
 export const setKey = (key: string) => localStorage.setItem(KEY_STORAGE, key)
 export const clearKey = () => localStorage.removeItem(KEY_STORAGE)
 
+const NOTICE_STORAGE = 'xebec.notice'
+
+/** Why the last session ended, for the login screen. Read once. */
+export function takeNotice() {
+  const notice = sessionStorage.getItem(NOTICE_STORAGE)
+  sessionStorage.removeItem(NOTICE_STORAGE)
+  return notice
+}
+
+// The credential stopped working: forget it and start over at the login screen.
+function expire(notice: string): never {
+  clearKey()
+  sessionStorage.setItem(NOTICE_STORAGE, notice)
+  location.reload()
+  throw new ApiError(401, 'signed_out', notice)
+}
+
+// Authenticates with the API key if there is one, else with meridian's sign-in cookie (sent
+// automatically on our own origin). Cookie requests must say X-Requested-With.
 async function request<T>(method: string, path: string, body?: unknown, key = getKey()): Promise<T> {
   const res = await fetch(BASE + path, {
     method,
     headers: {
-      authorization: `Bearer ${key}`,
+      'x-requested-with': 'xebec',
+      ...(key ? { authorization: `Bearer ${key}` } : {}),
       ...(body === undefined ? {} : { 'content-type': 'application/json' }),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   })
-  // A revoked or bad stored key: forget it and start over at the login screen.
+  const json = res.status === 204 ? null : await res.json().catch(() => null)
+  const err = json?.error
   if (res.status === 401 && key === getKey()) {
-    clearKey()
-    location.reload()
+    expire(key ? (err?.message ?? 'Signed out.') : 'Your session ended. Sign in again.')
   }
-  if (res.status === 204) return undefined as T
-  const json = await res.json().catch(() => null)
-  if (!res.ok) {
-    const err = json?.error
-    throw new ApiError(res.status, err?.code ?? 'http_error', err?.message ?? res.statusText)
-  }
+  if (!res.ok) throw new ApiError(res.status, err?.code ?? 'http_error', err?.message ?? res.statusText)
   return json as T
+}
+
+export interface Session {
+  /** Whether meridian offers sign-in (with its OIDC provider). */
+  sign_in: boolean
+  user: { id: string; name: string; email: string | null } | null
+}
+
+/** Meridian's sign-in: whether it's available and who is signed in. */
+export const getSession = () => request<{ data: Session }>('GET', '/api/auth/session', undefined, null).then((r) => r.data)
+
+/** Where the Sign in button goes. Meridian runs the login and comes back to `returnTo`. */
+export const signInUrl = (returnTo: string) => `${BASE}/api/auth/login?return_to=${encodeURIComponent(returnTo)}`
+
+export async function logOut() {
+  clearKey()
+  await request<void>('POST', '/api/auth/logout', undefined, null).catch(() => {})
 }
 
 export const checkKey = (key: string) =>

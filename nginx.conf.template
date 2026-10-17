@@ -1,6 +1,17 @@
 # Rendered into conf.d/ by the nginx image at startup. Only set environment variables
 # (MERIDIAN_URL) are substituted; nginx's own $variables pass through untouched.
 
+# What the browser used, for meridian's sign-in callback URL: an ingress in front of us knows
+# better than we do (it terminates TLS), so pass its X-Forwarded-* on if there are any.
+map $http_x_forwarded_proto $forwarded_proto {
+    default $http_x_forwarded_proto;
+    ""      $scheme;
+}
+map $http_x_forwarded_host $forwarded_host {
+    default $http_x_forwarded_host;
+    ""      $http_host;
+}
+
 server {
     listen 8080;
     server_name _;
@@ -22,7 +33,8 @@ server {
         proxy_http_version 1.1;
         proxy_set_header Connection "";
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $forwarded_proto;
+        proxy_set_header X-Forwarded-Host $forwarded_host;
         # Run events are SSE: pass each chunk through as it arrives. Meridian sends a keepalive
         # every 15s, so the read timeout only matters if it goes quiet.
         proxy_buffering off;

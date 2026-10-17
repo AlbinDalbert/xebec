@@ -1,12 +1,15 @@
 <script lang="ts">
-  import { clearKey, getKey, listThreads, type Thread } from './lib/api'
+  import { getKey, getSession, listThreads, logOut, type Thread } from './lib/api'
   import { activity, setOpen, track, type Activity } from './lib/activity.svelte'
   import Chat, { type Status } from './lib/Chat.svelte'
   import Dots from './lib/Dots.svelte'
   import Login from './lib/Login.svelte'
   import Mark from './lib/Mark.svelte'
 
+  // With an API key we're in; otherwise ask meridian about its sign-in session.
   let loggedIn = $state(!!getKey())
+  let checking = $state(!getKey())
+  let signIn = $state(false)
   let threads = $state<Thread[]>([])
   let threadId = $state<string | null>(location.hash.slice(1) || null)
   let status = $state<Status>({ kind: 'ready' })
@@ -69,11 +72,25 @@
     if (loggedIn) refresh()
   })
 
-  function logout() {
-    clearKey()
+  async function checkSession() {
+    try {
+      const session = await getSession()
+      signIn = session.sign_in
+      loggedIn ||= !!session.user
+    } catch {
+      signIn = false
+    } finally {
+      checking = false
+    }
+  }
+  if (!getKey()) checkSession()
+
+  async function logout() {
     loggedIn = false
     threads = []
     open(null)
+    await logOut()
+    await checkSession()
   }
 </script>
 
@@ -121,8 +138,8 @@
         <Chat {threadId} {title} onOpen={open} onActivity={refresh} bind:status bind:persona />
       </main>
     </div>
-  {:else}
-    <Login onLogin={() => (loggedIn = true)} />
+  {:else if !checking}
+    <Login {signIn} onLogin={() => (loggedIn = true)} />
   {/if}
 
   <footer class="status" class:failed={status.kind === 'failed'}>

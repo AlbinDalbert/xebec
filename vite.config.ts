@@ -11,7 +11,16 @@ export default defineConfig(({ mode }) => {
     plugins: [svelte()],
     server: {
       proxy: {
-        '/api': { target: env.MERIDIAN_URL || 'http://localhost:4000', changeOrigin: true },
+        '/api': {
+          target: env.MERIDIAN_URL || 'http://localhost:4000',
+          changeOrigin: true,
+          // Meridian's sign-in builds its callback URL from the address the browser used.
+          configure: (proxy) =>
+            proxy.on('proxyReq', (proxyReq, req) => {
+              proxyReq.setHeader('x-forwarded-host', req.headers.host ?? '')
+              proxyReq.setHeader('x-forwarded-proto', 'http')
+            }),
+        },
       },
     },
   }
