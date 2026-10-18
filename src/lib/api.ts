@@ -45,6 +45,8 @@ export interface Thread {
   id: string
   title: string | null
   agent: string | null
+  /** Free-form labels; we give `pinned` meaning. Older meridians omit them. */
+  tags?: string[]
   inserted_at: string
   updated_at: string
   active_run?: Run | null
@@ -133,8 +135,11 @@ export async function logOut() {
 export const checkKey = (key: string) =>
   request<{ data: Thread[] }>('GET', '/api/threads?limit=1', undefined, key)
 
-export const listThreads = () =>
-  request<{ data: Thread[] }>('GET', '/api/threads').then((r) => r.data)
+/** Most recently active first; with `tag`, only the threads that have it. */
+export const listThreads = (tag?: string) =>
+  request<{ data: Thread[] }>('GET', `/api/threads${tag ? `?tag=${encodeURIComponent(tag)}` : ''}`).then(
+    (r) => r.data,
+  )
 
 export const getThread = (id: string) =>
   request<{ data: Thread }>('GET', `/api/threads/${id}`).then((r) => r.data)
@@ -142,9 +147,11 @@ export const getThread = (id: string) =>
 export const createThread = (title: string, agent?: string) =>
   request<{ data: Thread }>('POST', '/api/threads', { title, agent }).then((r) => r.data)
 
-/** Changes the thread's agent; the next run uses it. */
-export const setThreadAgent = (id: string, agent: string) =>
-  request<{ data: Thread }>('PATCH', `/api/threads/${id}`, { agent }).then((r) => r.data)
+/** Changes what's given: the agent (the next run uses it) or the tags (replaced whole). */
+export const updateThread = (id: string, attrs: { agent?: string; tags?: string[] }) =>
+  request<{ data: Thread }>('PATCH', `/api/threads/${id}`, attrs).then((r) => r.data)
+
+export const isPinned = (t: Thread) => !!t.tags?.includes('pinned')
 
 export const listAgents = () => request<{ data: Agent[] }>('GET', '/api/agents').then((r) => r.data)
 

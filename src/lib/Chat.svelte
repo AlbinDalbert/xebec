@@ -6,13 +6,14 @@
     deleteThread,
     forkThread,
     getThread,
+    isPinned,
     listMessages,
     reply,
     runEvents,
     sendMessage,
-    setThreadAgent,
     textOf,
     truncateThread,
+    updateThread,
     type Agent,
     type Message,
     type Run,
@@ -44,7 +45,7 @@
     agents: Agent[]
     /** Navigate to a thread (null: a new one). */
     onOpen: (id: string | null) => void
-    /** Threads changed (new message, finished run, deletion); refresh the list. */
+    /** Threads changed (new message, finished run, pin, deletion); refresh the list. */
     onActivity: () => void
   } = $props()
 
@@ -252,7 +253,7 @@
     const before = picked
     picked = id
     try {
-      thread = await setThreadAgent(threadId, id)
+      thread = await updateThread(threadId, { agent: id })
     } catch (err) {
       picked = before
       fail(err)
@@ -263,6 +264,18 @@
     if (!run) return
     try {
       await cancelRun(run.id)
+    } catch (err) {
+      fail(err)
+    }
+  }
+
+  async function togglePin() {
+    if (!thread) return
+    const tags = thread.tags ?? []
+    const next = isPinned(thread) ? tags.filter((t) => t !== 'pinned') : [...tags, 'pinned']
+    try {
+      thread = await updateThread(thread.id, { tags: next })
+      onActivity()
     } catch (err) {
       fail(err)
     }
@@ -330,6 +343,7 @@
             <span>Write below to start a thread.</span>
           {:else if thread}
             <span>Started {started}</span>
+            <button class="quiet" onclick={togglePin}>{isPinned(thread) ? 'Unpin' : 'Pin'}</button>
             {#if confirmDelete}
               <span class="confirm">
                 Delete this thread?

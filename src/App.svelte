@@ -3,6 +3,7 @@
     clearFresh,
     getKey,
     getSession,
+    isPinned,
     listAgents,
     listThreads,
     logOut,
@@ -43,11 +44,12 @@
   // Who's signed in, for the corner. API keys don't say whose they are, so show which key.
   const who = $derived(user ? user.name || user.email || 'Signed in' : `API key ··${getKey()?.slice(-4) ?? ''}`)
 
-  // Threads grouped by last activity, like folders in mosaic's tree.
+  // Threads grouped by last activity, like folders in mosaic's tree. Pinned ones come first.
   const groups = $derived.by(() => {
     const day = 86_400_000
     const today = new Date().setHours(0, 0, 0, 0)
     const label = (t: Thread) => {
+      if (isPinned(t)) return 'Pinned'
       const at = new Date(t.updated_at).getTime()
       if (at >= today) return 'Today'
       if (at >= today - day) return 'Yesterday'
@@ -77,7 +79,10 @@
   })
 
   async function refresh() {
-    threads = await listThreads()
+    // Pinned ones separately, so they show even when they're past the first page. Filtered here
+    // too, since an older meridian ignores the tag and lists everything.
+    const [pinned, recent] = await Promise.all([listThreads('pinned'), listThreads()])
+    threads = [...pinned.filter(isPinned), ...recent.filter((t) => !isPinned(t))]
     // Not in meridian's list yet; picked up as soon as it is.
     for (const t of threads) if (t.active_run) track(t.active_run)
   }
