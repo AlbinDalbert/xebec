@@ -158,6 +158,18 @@ export const sendMessage = (threadId: string, content: string) =>
     content,
   }).then((r) => r.data)
 
+/** A copy of the thread with its messages up to and including `through`. */
+export const forkThread = (id: string, through: string) =>
+  request<{ data: Thread }>('POST', `/api/threads/${id}/fork`, { through }).then((r) => r.data)
+
+/** Deletes the thread's messages after `after`. */
+export const truncateThread = (id: string, after: string) =>
+  request<void>('POST', `/api/threads/${id}/truncate`, { after })
+
+/** Starts a run replying to the thread's last message, which must be the user's. */
+export const reply = (threadId: string) =>
+  request<{ data: Run }>('POST', `/api/threads/${threadId}/reply`).then((r) => r.data)
+
 export const getRun = (id: string) => request<{ data: Run }>('GET', `/api/runs/${id}`).then((r) => r.data)
 
 export const cancelRun = (id: string) => request<{ data: Run }>('POST', `/api/runs/${id}/cancel`)

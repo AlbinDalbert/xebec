@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from 'svelte'
   import Dots from './Dots.svelte'
   import { renderMarkdown } from './markdown'
 
@@ -7,7 +8,15 @@
     text,
     reasoning = '',
     streaming = false,
-  }: { role: 'user' | 'assistant'; text: string; reasoning?: string; streaming?: boolean } = $props()
+    actions,
+  }: {
+    role: 'user' | 'assistant'
+    text: string
+    reasoning?: string
+    streaming?: boolean
+    /** Buttons under the message (reroll, branch). */
+    actions?: Snippet
+  } = $props()
 
   const html = $derived(role === 'assistant' ? renderMarkdown(text) : '')
   const thinking = $derived(streaming && !text)
@@ -31,6 +40,7 @@
 {#if role === 'user'}
   <div class="turn">
     <div class="user" data-kind="YOU">{text}</div>
+    {#if actions}<div class="actions">{@render actions()}</div>{/if}
   </div>
 {:else}
   <div class="assistant">
@@ -49,6 +59,7 @@
     {#if streaming && !text && !reasoning}
       <div class="waiting"><Dots /></div>
     {/if}
+    {#if actions}<div class="actions">{@render actions()}</div>{/if}
   </div>
 {/if}
 
@@ -250,6 +261,47 @@
   }
   .prose :global(img) {
     max-width: 100%;
+  }
+
+  /* Shown on hover where there is hover; always (dimmed) on touch screens. */
+  .actions {
+    display: flex;
+    gap: 14px;
+    margin-top: 0.5em;
+    font-family: var(--font-ui);
+    font-size: 11px;
+    opacity: 0.6;
+  }
+  .user + .actions {
+    padding-left: 16px;
+  }
+  @media (hover: hover) {
+    .actions {
+      opacity: 0;
+    }
+    .turn:hover .actions,
+    .assistant:hover .actions,
+    .actions:focus-within {
+      opacity: 1;
+    }
+  }
+  .actions :global(button) {
+    font: inherit;
+    padding: 0;
+    color: var(--text-dim);
+    background: none;
+    border: 0;
+    cursor: pointer;
+    text-decoration: underline dotted;
+    text-underline-offset: 0.25em;
+  }
+  .actions :global(button:hover) {
+    color: var(--accent-strong);
+    text-decoration-style: solid;
+  }
+  .actions :global(button:disabled) {
+    cursor: default;
+    opacity: 0.5;
   }
 
   @media (max-width: 760px) {

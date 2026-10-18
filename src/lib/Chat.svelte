@@ -4,12 +4,15 @@
     cancelRun,
     createThread,
     deleteThread,
+    forkThread,
     getThread,
     listMessages,
+    reply,
     runEvents,
     sendMessage,
     setThreadAgent,
     textOf,
+    truncateThread,
     type Agent,
     type Message,
     type Run,
@@ -200,6 +203,45 @@
     }
   }
 
+  /** Replaces the last reply: drops everything after the last user message and replies again. */
+  async function reroll() {
+    const id = threadId
+    const last = messages.findLast((m) => m.role === 'user')
+    if (!id || !last || run || sending) return
+    sending = true
+    try {
+      if (messages.at(-1)?.id !== last.id) {
+        await truncateThread(id, last.id)
+        messages = messages.slice(0, messages.findIndex((m) => m.id === last.id) + 1)
+      }
+      const r = await reply(id)
+      if (id !== threadId) return
+      follow(r)
+      scrollToEnd(true)
+      onActivity()
+    } catch (err) {
+      fail(err)
+    } finally {
+      sending = false
+    }
+  }
+
+  /** Opens a copy of the thread up to `m`. Branching at a user message also answers it anew. */
+  async function branch(m: Message) {
+    if (!threadId || sending) return
+    sending = true
+    try {
+      const t = await forkThread(threadId, m.id)
+      if (m.role === 'user') activity.track(await reply(t.id))
+      onOpen(t.id)
+      onActivity()
+    } catch (err) {
+      fail(err)
+    } finally {
+      sending = false
+    }
+  }
+
   async function pickAgent(id: string) {
     localStorage.setItem(AGENT_STORAGE, id)
     if (!threadId) {
@@ -304,8 +346,15 @@
       {#if hasMore}
         <p class="note">Earlier messages aren't shown.</p>
       {/if}
-      {#each messages as m (m.id)}
-        <MessageView role={m.role} text={textOf(m)} reasoning={textOf(m, 'reasoning')} />
+      {#each messages as m, i (m.id)}
+        <MessageView role={m.role} text={textOf(m)} reasoning={textOf(m, 'reasoning')}>
+          {#snippet actions()}
+            {#if i === messages.length - 1 && !run}
+              <button onclick={reroll} disabled={sending}>{m.role === 'user' ? 'Retry' : 'Reroll'}</button>
+            {/if}
+            <button onclick={() => branch(m)} disabled={sending}>Branch</button>
+          {/snippet}
+        </MessageView>
       {/each}
       {#if pending}
         <MessageView role="assistant" text={pending.content} reasoning={pending.reasoning} streaming />
