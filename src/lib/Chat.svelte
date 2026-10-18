@@ -361,14 +361,19 @@
         <p class="note">Earlier messages aren't shown.</p>
       {/if}
       {#each messages as m, i (m.id)}
-        <MessageView role={m.role} text={textOf(m)} reasoning={textOf(m, 'reasoning')}>
-          {#snippet actions()}
-            {#if i === messages.length - 1 && !run}
-              <button onclick={reroll} disabled={sending}>{m.role === 'user' ? 'Retry' : 'Reroll'}</button>
-            {/if}
-            <button onclick={() => branch(m)} disabled={sending}>Branch</button>
-          {/snippet}
-        </MessageView>
+        <!-- Tool results and empty tool-call steps have nothing to show. Only a user message or an answer can be branched from. -->
+        {#if m.role !== 'tool' && (textOf(m) || textOf(m, 'reasoning'))}
+          <MessageView role={m.role} text={textOf(m)} reasoning={textOf(m, 'reasoning')}>
+            {#snippet actions()}
+              {#if i === messages.length - 1 && !run}
+                <button onclick={reroll} disabled={sending}>{m.role === 'user' ? 'Retry' : 'Reroll'}</button>
+              {/if}
+              {#if !m.tool_calls?.length}
+                <button onclick={() => branch(m)} disabled={sending}>Branch</button>
+              {/if}
+            {/snippet}
+          </MessageView>
+        {/if}
       {/each}
       {#if pending}
         <MessageView role="assistant" text={pending.content} reasoning={pending.reasoning} streaming />

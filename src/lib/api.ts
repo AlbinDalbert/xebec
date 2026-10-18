@@ -13,8 +13,10 @@ export interface Message {
   id: string
   thread_id: string
   run_id: string | null
-  role: 'user' | 'assistant'
+  /** A run's tool steps are messages too: an assistant message with `tool_calls`, then one `tool` message per result. */
+  role: 'user' | 'assistant' | 'tool'
   content: Part[]
+  tool_calls?: unknown[] | null
   metadata: Record<string, unknown>
   usage: Record<string, number> | null
   inserted_at: string
